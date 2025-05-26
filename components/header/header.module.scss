@@ -1,16 +1,17 @@
 .header {
     --size: 40px;
 
-    position: absolute;
+    position: sticky;
     top: 0;
     user-select: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    height: var(--header-height);
+    min-height: var(--header-height);
     padding-inline: 1rem;
-    background-color: var(--background-color);
+    backdrop-filter: blur(10px);
+    background: rgba(248, 248, 255, 0.8);
     z-index: 1000;
 
     .title {

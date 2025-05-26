@@ -28,8 +28,10 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={mono.variable} suppressHydrationWarning>
-                <Header />
-                {children}
+                <div className="page">
+                    <Header />
+                    {children}
+                </div>
             </body>
         </html>
     );
