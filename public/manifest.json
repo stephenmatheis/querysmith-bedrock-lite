@@ -1,0 +1,10 @@
+{
+  "id": "/",
+  "start_url": "/",
+  "name": "QuerySmith",
+  "short_name": "QuerySmith",
+  "description": "LLM generative AI with semantic search.",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

@@ -1,0 +1,20 @@
+.chat {
+    max-width: 48rem;
+    width: 100%;
+}
+
+.greeting {
+    text-align: center;
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.25;
+    margin-bottom: 3rem;
+
+    .dark {
+        color: var(--primary);
+    }
+
+    .light {
+        color: var(--muted);
+    }
+}

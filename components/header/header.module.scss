@@ -1,0 +1,170 @@
+.header {
+    --size: 40px;
+
+    position: absolute;
+    top: 0;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background-color: var(--background-color);
+    z-index: 1000;
+
+    .title {
+        display: flex;
+        align-items: center;
+        font-size: 1.25rem;
+        font-weight: 900;
+        color: var(--primary);
+        gap: 0.5rem;
+    }
+
+    nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+
+        @media screen and (max-width: 500px) {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .links {
+            display: flex;
+            gap: 1rem;
+            margin-right: 1rem;
+
+            a {
+                font-weight: 700;
+            }
+        }
+
+        a {
+            color: var(--muted);
+            font-weight: 600;
+
+            &:hover {
+                color: var(--accent);
+            }
+        }
+
+        button {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            width: 44px;
+            height: 44px;
+            padding: 0px;
+
+            .circle {
+                height: var(--size);
+                width: var(--size);
+                background-color: white;
+                border-radius: 50%;
+                border: solid 1px rgba(0, 0, 0, 0.1);
+                color: var(--primary);
+                font-size: 14px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                &.step {
+                    cursor: pointer;
+                }
+
+                svg {
+                    fill: var(--container-color);
+                }
+
+                img {
+                    height: var(--size);
+                    width: var(--size);
+                    border-radius: 50%;
+                }
+            }
+        }
+    }
+
+    .tooltip {
+        color: var(--color);
+        background-color: var(--container-color);
+        border-radius: 12px;
+        box-shadow: 0px 0px 8px 2px rgba(0, 0, 0, 0.15);
+    }
+}
+
+// Modal: About
+.dialog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .name {
+        font-weight: 900;
+        font-size: 20px;
+        color: var(--primary);
+    }
+
+    .version {
+        font-size: 14px;
+    }
+
+    .description {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 1rem;
+        font-weight: 600;
+    }
+
+    .footer {
+        margin-top: 1rem;
+        font-size: 14px;
+        color: var(--color-medium);
+
+        a {
+            &:hover {
+                color: var(--primary);
+            }
+        }
+    }
+}
+
+// Modal: Settings
+.settings {
+    display: flex;
+    gap: 40px;
+    min-width: 600px;
+    min-height: 200px;
+
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .item {
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 12px;
+
+            &.selected {
+                background-color: var(--button-background);
+
+                .menu-btn-ctr {
+                    background-image: linear-gradient(to left, var(--button-background) 0%, #ffffff00);
+                }
+            }
+        }
+    }
+
+    .content {
+        padding: 6px 0px;
+    }
+}
