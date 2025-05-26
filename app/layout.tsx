@@ -5,13 +5,13 @@ import '@/styles/app.scss';
 
 const mono = Nunito({
     subsets: ['latin'],
-    variable: '--font-mono',
+    variable: '--font-nunito',
     display: 'swap',
 });
 
 export const metadata: Metadata = {
-    title: 'Quirk',
-    description: 'Plus Ultra!',
+    title: 'QuerySmith',
+    description: 'QuerySmith',
 };
 
 export const viewport: Viewport = {

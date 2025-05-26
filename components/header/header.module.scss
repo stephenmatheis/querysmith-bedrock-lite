@@ -8,7 +8,8 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 0.5rem 1rem;
+    height: var(--header-height);
+    padding-inline: 1rem;
     background-color: var(--background-color);
     z-index: 1000;
 

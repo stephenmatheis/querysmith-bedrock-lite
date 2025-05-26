@@ -117,10 +117,10 @@ export function ChatInputPanel({ running, setRunning, messageHistory, setMessage
     }
 
     return (
-        <>
+        <div className={styles['chat-input-panel-container']}>
             <div className={styles['chat-input-panel']}>
                 {/* Field */}
-                <div className={styles['chat-prompt-field']}>
+                <div className={styles['chat-input-field']}>
                     {/* Textarea */}
                     <textarea
                         ref={textareaRef}
@@ -139,7 +139,7 @@ export function ChatInputPanel({ running, setRunning, messageHistory, setMessage
                 </div>
 
                 {/* Toolbar */}
-                <div className={styles['chat-prompt-actions']}>
+                <div className={styles['chat-input-actions']}>
                     {/* Left */}
                     <div className={styles.box}>
                         {/* Send message */}
@@ -184,27 +184,6 @@ export function ChatInputPanel({ running, setRunning, messageHistory, setMessage
                     </div>
                 </div>
             </div>
-
-            {/* Example prompts */}
-            <div className={styles.examples}>
-                {['Create a list', 'Summarize tasks', 'Teach me', 'Organize notes'].map((example) => (
-                    <button key={example} className={styles.example} onClick={() => setPrompt(example)}>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            fill="currentColor"
-                            viewBox="0 0 16 16"
-                        >
-                            <path
-                                fillRule="evenodd"
-                                d="M2 12.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m0-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5m0-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5m4-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5"
-                            />
-                        </svg>
-                        <span>{example}</span>
-                    </button>
-                ))}
-            </div>
-        </>
+        </div>
     );
 }
