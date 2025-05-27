@@ -6,6 +6,7 @@ import { Message } from '@/types/types';
 import styles from './chat-input-panel.module.scss';
 
 type ChatInputPanelProps = {
+    sessionId: string;
     running: boolean;
     setRunning: Dispatch<SetStateAction<boolean>>;
     messageHistory: Message[];
@@ -14,29 +15,13 @@ type ChatInputPanelProps = {
 
 const MAX_ROWS = 12;
 
-async function callAnthropicAPI(messages: { role: string; content: string }[]) {
-    const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            messages,
-            model: 'claude-opus-4-20250514',
-            max_tokens: 1000,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`API call failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    return data.content[0].text;
-}
-
-export function ChatInputPanel({ running, setRunning, messageHistory, setMessageHistory }: ChatInputPanelProps) {
+export function ChatInputPanel({
+    sessionId,
+    running,
+    setRunning,
+    messageHistory,
+    setMessageHistory,
+}: ChatInputPanelProps) {
     const [prompt, setPrompt] = useState<string>('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -84,7 +69,8 @@ export function ChatInputPanel({ running, setRunning, messageHistory, setMessage
         }
 
         try {
-            const apiMessages: Message[] = [
+            // Prepare messages for the API
+            const apiMessages = [
                 ...messageHistory,
                 {
                     role: 'user',
@@ -92,17 +78,112 @@ export function ChatInputPanel({ running, setRunning, messageHistory, setMessage
                 },
             ];
 
-            const assistantResponse = await callAnthropicAPI(apiMessages);
-
-            setMessageHistory((prev) => [
-                ...prev,
-                {
-                    role: 'assistant',
-                    content: assistantResponse,
+            // Call the Bedrock Agent API with streaming
+            const response = await fetch('/api/agent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
-            ]);
+                body: JSON.stringify({
+                    messages: apiMessages,
+                    sessionId: sessionId || 'default-session', // You'll need to pass sessionId as a prop
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed: ${response.statusText}`);
+            }
+
+            // Check if we got a streaming response
+            const contentType = response.headers.get('content-type');
+
+            if (contentType?.includes('text/event-stream')) {
+                // Handle streaming response
+                const reader = response.body?.getReader();
+                const decoder = new TextDecoder();
+                let assistantContent = '';
+                let buffer = ''; // Move buffer outside the loop
+
+                if (reader) {
+                    // Add an empty assistant message that we'll update
+                    setMessageHistory((prev) => [
+                        ...prev,
+                        {
+                            role: 'assistant',
+                            content: '',
+                        },
+                    ]);
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+
+                        console.log('Received chunk:', chunk);
+
+                        // Add chunk to buffer to handle partial messages
+                        buffer += chunk;
+
+                        // Split by double newline (SSE message separator)
+                        const messages = buffer.split('\n\n');
+
+                        // Keep the last part in buffer (might be incomplete)
+                        buffer = messages.pop() || '';
+
+                        for (const message of messages) {
+                            const lines = message.split('\n');
+
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(line.slice(6));
+
+                                        if (data.type === 'content') {
+                                            assistantContent += data.content;
+
+                                            setMessageHistory((prev) => {
+                                                const newHistory = [...prev];
+
+                                                if (
+                                                    newHistory.length > 0 &&
+                                                    newHistory[newHistory.length - 1].role === 'assistant'
+                                                ) {
+                                                    newHistory[newHistory.length - 1].content = assistantContent;
+                                                }
+                                                return newHistory;
+                                            });
+                                        } else if (data.type === 'done') {
+                                            console.log('Stream completed', data);
+                                        } else if (data.type === 'error') {
+                                            throw new Error(data.error);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error parsing SSE data:', e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (buffer.trim()) {
+                        console.warn('Unprocessed data in buffer:', buffer);
+                    }
+                }
+            } else {
+                const data = await response.json();
+
+                setMessageHistory((prev) => [
+                    ...prev,
+                    {
+                        role: 'assistant',
+                        content: data.content || 'Sorry, I received an unexpected response format.',
+                    },
+                ]);
+            }
         } catch (error) {
-            console.error('Error calling Anthropic API:', error);
+            console.error('Error calling Bedrock Agent API:', error);
 
             setMessageHistory((prev) => [
                 ...prev,
