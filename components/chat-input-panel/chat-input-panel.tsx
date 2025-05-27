@@ -45,7 +45,13 @@ export function ChatInputPanel({
 
         resize();
 
-        return () => textarea.removeEventListener('input', resize);
+        return () => {
+            textarea.removeEventListener('input', resize);
+
+            if (animateTextRef.current) {
+                clearTimeout(animateTextRef.current);
+            }
+        };
     }, []);
 
     async function handleSendMessage() {
@@ -154,7 +160,7 @@ export function ChatInputPanel({
                                                 let currentIndex = 0;
                                                 const chars = Array.from(newContent); // Handle Unicode properly
 
-                                                function animateText() {
+                                                const animateText = () => {
                                                     if (currentIndex < chars.length) {
                                                         assistantContent = chars.slice(0, currentIndex + 1).join('');
 
@@ -174,24 +180,21 @@ export function ChatInputPanel({
 
                                                         // Variable speed based on character type
                                                         let delay = 30; // default speed
-
                                                         const prevChar = (
                                                             currentIndex > 0 ? chars[currentIndex - 1] : null
                                                         ) as string | null;
-
                                                         if (prevChar === ' ') delay = 10; // faster for spaces
                                                         if (prevChar && ['.', '!', '?'].includes(prevChar)) delay = 200; // pause at sentence ends
 
                                                         animateTextRef.current = setTimeout(animateText, delay);
                                                     }
-                                                }
+                                                };
 
                                                 animateText();
                                             } else {
                                                 // For subsequent chunks (if any), append with animation
                                                 const startLength = assistantContent.length;
                                                 const chars = Array.from(newContent);
-
                                                 let currentIndex = 0;
 
                                                 const animateText = () => {
@@ -219,10 +222,6 @@ export function ChatInputPanel({
 
                                                 animateText();
                                             }
-                                        } else if (data.type === 'done') {
-                                            console.log('Stream completed', data);
-                                        } else if (data.type === 'error') {
-                                            throw new Error(data.error);
                                         }
                                     } catch (e) {
                                         console.error('Error parsing SSE data:', e);
