@@ -6,9 +6,11 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
+    const content = message.content.trim();
+
     return (
         <div className={`${styles.chatMessage} ${message.role === 'user' ? styles.user : styles.assistant}`}>
-            <div className={styles.messageBubble}>{message.content.trim()}</div>
+            <div className={styles.messageBubble}>{content || '...'}</div>
         </div>
     );
 }

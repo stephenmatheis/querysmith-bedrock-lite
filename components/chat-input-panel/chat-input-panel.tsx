@@ -24,6 +24,7 @@ export function ChatInputPanel({
 }: ChatInputPanelProps) {
     const [prompt, setPrompt] = useState<string>('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const animateTextRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const textarea = textareaRef.current;
@@ -141,19 +142,83 @@ export function ChatInputPanel({
                                         const data = JSON.parse(line.slice(6));
 
                                         if (data.type === 'content') {
-                                            assistantContent += data.content;
+                                            const newContent = data.content;
 
-                                            setMessageHistory((prev) => {
-                                                const newHistory = [...prev];
+                                            // Clear any existing animation
+                                            if (animateTextRef.current) {
+                                                clearTimeout(animateTextRef.current);
+                                            }
 
-                                                if (
-                                                    newHistory.length > 0 &&
-                                                    newHistory[newHistory.length - 1].role === 'assistant'
-                                                ) {
-                                                    newHistory[newHistory.length - 1].content = assistantContent;
+                                            // If this is the first chunk, animate it
+                                            if (assistantContent === '') {
+                                                let currentIndex = 0;
+                                                const chars = Array.from(newContent); // Handle Unicode properly
+
+                                                function animateText() {
+                                                    if (currentIndex < chars.length) {
+                                                        assistantContent = chars.slice(0, currentIndex + 1).join('');
+
+                                                        setMessageHistory((prev) => {
+                                                            const newHistory = [...prev];
+                                                            if (
+                                                                newHistory.length > 0 &&
+                                                                newHistory[newHistory.length - 1].role === 'assistant'
+                                                            ) {
+                                                                newHistory[newHistory.length - 1].content =
+                                                                    assistantContent;
+                                                            }
+                                                            return newHistory;
+                                                        });
+
+                                                        currentIndex++;
+
+                                                        // Variable speed based on character type
+                                                        let delay = 30; // default speed
+
+                                                        const prevChar = (
+                                                            currentIndex > 0 ? chars[currentIndex - 1] : null
+                                                        ) as string | null;
+
+                                                        if (prevChar === ' ') delay = 10; // faster for spaces
+                                                        if (prevChar && ['.', '!', '?'].includes(prevChar)) delay = 200; // pause at sentence ends
+
+                                                        animateTextRef.current = setTimeout(animateText, delay);
+                                                    }
                                                 }
-                                                return newHistory;
-                                            });
+
+                                                animateText();
+                                            } else {
+                                                // For subsequent chunks (if any), append with animation
+                                                const startLength = assistantContent.length;
+                                                const chars = Array.from(newContent);
+
+                                                let currentIndex = 0;
+
+                                                const animateText = () => {
+                                                    if (currentIndex < chars.length) {
+                                                        assistantContent =
+                                                            assistantContent.slice(0, startLength) +
+                                                            chars.slice(0, currentIndex + 1).join('');
+
+                                                        setMessageHistory((prev) => {
+                                                            const newHistory = [...prev];
+                                                            if (
+                                                                newHistory.length > 0 &&
+                                                                newHistory[newHistory.length - 1].role === 'assistant'
+                                                            ) {
+                                                                newHistory[newHistory.length - 1].content =
+                                                                    assistantContent;
+                                                            }
+                                                            return newHistory;
+                                                        });
+
+                                                        currentIndex++;
+                                                        animateTextRef.current = setTimeout(animateText, 30);
+                                                    }
+                                                };
+
+                                                animateText();
+                                            }
                                         } else if (data.type === 'done') {
                                             console.log('Stream completed', data);
                                         } else if (data.type === 'error') {
