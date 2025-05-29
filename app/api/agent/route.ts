@@ -1,10 +1,35 @@
 import { BedrockAgentRuntimeClient, InvokeAgentCommand } from '@aws-sdk/client-bedrock-agent-runtime';
 
+async function invokeAgentWithRetry(client: BedrockAgentRuntimeClient, command: InvokeAgentCommand, maxRetries = 3) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`[Agent] Attempt ${attempt + 1}...`);
+
+            const response = await client.send(command);
+
+            return response;
+        } catch (err: unknown) {
+            if ((err as { name?: string }).name === 'ThrottlingException' && attempt < maxRetries) {
+                const wait = 500 * Math.pow(2, attempt);
+
+                console.warn(`[Agent] Throttled. Retrying in ${wait}ms...`);
+
+                await new Promise((res) => setTimeout(res, wait));
+            } else {
+                console.error(`[Agent] Failed on attempt ${attempt + 1}:`, err);
+
+                throw err;
+            }
+        }
+    }
+
+    throw new Error('Agent throttling retries exceeded.');
+}
+
 export async function POST(request: Request) {
     try {
         const { messages, sessionId = 'default-session' } = await request.json();
 
-        // Get environment variables
         const agentId = process.env.AGENT_ID;
         const agentAliasId = process.env.AGENT_ALIAS_ID;
         const region = process.env.REGION || 'us-east-1';
@@ -23,21 +48,18 @@ export async function POST(request: Request) {
 
         if (Array.isArray(messages)) {
             const userMessages = messages.filter((msg) => msg.role === 'user');
-            if (userMessages.length > 0) {
-                inputText = userMessages[userMessages.length - 1].content;
-            } else {
-                inputText = messages.map((msg) => msg.content).join('\n');
-            }
+
+            inputText =
+                userMessages.length > 0
+                    ? userMessages[userMessages.length - 1].content
+                    : messages.map((msg) => msg.content).join('\n');
         } else if (typeof messages === 'string') {
             inputText = messages;
         } else {
             return Response.json({ error: 'Invalid messages format' }, { status: 400 });
         }
 
-        // Initialize the Bedrock Agent client
         const client = new BedrockAgentRuntimeClient({ region });
-
-        // Create command
         const command = new InvokeAgentCommand({
             agentId,
             agentAliasId,
@@ -45,14 +67,14 @@ export async function POST(request: Request) {
             inputText,
         });
 
-        // Execute command
-        const response = await client.send(command);
+        console.log(`[Agent] Invoking with sessionId: ${sessionId}`);
+
+        const response = await invokeAgentWithRetry(client, command);
 
         if (!response.completion) {
             return Response.json({ error: 'No completion stream received' }, { status: 500 });
         }
 
-        // Create a readable stream for SSE
         const stream = new ReadableStream({
             async start(controller) {
                 const encoder = new TextEncoder();
@@ -64,6 +86,7 @@ export async function POST(request: Request) {
 
                             if (raw) {
                                 let content = '';
+
                                 try {
                                     const payload = JSON.parse(raw);
                                     content = payload.content || '';
@@ -72,10 +95,8 @@ export async function POST(request: Request) {
                                 }
 
                                 if (content) {
-                                    // Check if Bedrock is sending the full content at once
                                     console.log('Bedrock chunk received:', content.length, 'characters');
 
-                                    // Send as Server-Sent Events format
                                     const sseData = `data: ${JSON.stringify({
                                         content,
                                         type: 'content',
@@ -86,7 +107,6 @@ export async function POST(request: Request) {
                         }
                     }
 
-                    // Send completion signal
                     const doneData = `data: ${JSON.stringify({
                         type: 'done',
                         agentId,
@@ -106,7 +126,6 @@ export async function POST(request: Request) {
             },
         });
 
-        // Return streaming response with all necessary headers
         return new Response(stream, {
             headers: {
                 'Content-Type': 'text/event-stream',
@@ -115,7 +134,7 @@ export async function POST(request: Request) {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'POST',
                 'Access-Control-Allow-Headers': 'Content-Type',
-                'X-Accel-Buffering': 'no', // Disable Nginx buffering
+                'X-Accel-Buffering': 'no',
                 'X-Content-Type-Options': 'nosniff',
             },
         });
@@ -124,20 +143,10 @@ export async function POST(request: Request) {
 
         if (error instanceof Error) {
             if (error.name === 'ResourceNotFoundException') {
-                return Response.json(
-                    {
-                        error: 'Bedrock Agent not found. Check your AGENT_ID and AGENT_ALIAS_ID.',
-                    },
-                    { status: 404 }
-                );
+                return Response.json({ error: 'Bedrock Agent not found.' }, { status: 404 });
             }
             if (error.name === 'AccessDeniedException') {
-                return Response.json(
-                    {
-                        error: 'Access denied to Bedrock Agent. Check your AWS credentials and permissions.',
-                    },
-                    { status: 403 }
-                );
+                return Response.json({ error: 'Access denied to Bedrock Agent.' }, { status: 403 });
             }
         }
 
