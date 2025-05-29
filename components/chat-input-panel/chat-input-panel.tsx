@@ -15,6 +15,8 @@ type ChatInputPanelProps = {
 
 const MAX_ROWS = 12;
 
+let lastRequestTime = 0;
+
 export function ChatInputPanel({
     sessionId,
     running,
@@ -57,6 +59,17 @@ export function ChatInputPanel({
     async function handleSendMessage() {
         if (running || !prompt.trim()) return;
 
+        const now = Date.now();
+
+        if (now - lastRequestTime < 2000) {
+            console.warn('Too soon! Throttling user input.');
+            return;
+        }
+
+        lastRequestTime = now;
+
+        setRunning(true);
+
         const userMessage = prompt.trim();
 
         setMessageHistory((prev) => [
@@ -67,8 +80,16 @@ export function ChatInputPanel({
             },
         ]);
 
-        setRunning(true);
         setPrompt('');
+
+        // Add an empty assistant message that we'll update
+        setMessageHistory((prev) => [
+            ...prev,
+            {
+                role: 'assistant',
+                content: '',
+            },
+        ]);
 
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
@@ -93,7 +114,7 @@ export function ChatInputPanel({
                 },
                 body: JSON.stringify({
                     messages: apiMessages,
-                    sessionId: sessionId || 'default-session', // You'll need to pass sessionId as a prop
+                    sessionId,
                 }),
             });
 
@@ -101,26 +122,16 @@ export function ChatInputPanel({
                 throw new Error(`API call failed: ${response.statusText}`);
             }
 
-            // Check if we got a streaming response
             const contentType = response.headers.get('content-type');
 
             if (contentType?.includes('text/event-stream')) {
-                // Handle streaming response
                 const reader = response.body?.getReader();
                 const decoder = new TextDecoder();
+
                 let assistantContent = '';
-                let buffer = ''; // Move buffer outside the loop
+                let buffer = '';
 
                 if (reader) {
-                    // Add an empty assistant message that we'll update
-                    setMessageHistory((prev) => [
-                        ...prev,
-                        {
-                            role: 'assistant',
-                            content: '',
-                        },
-                    ]);
-
                     while (true) {
                         const { done, value } = await reader.read();
 
@@ -166,6 +177,7 @@ export function ChatInputPanel({
 
                                                         setMessageHistory((prev) => {
                                                             const newHistory = [...prev];
+
                                                             if (
                                                                 newHistory.length > 0 &&
                                                                 newHistory[newHistory.length - 1].role === 'assistant'
@@ -173,6 +185,7 @@ export function ChatInputPanel({
                                                                 newHistory[newHistory.length - 1].content =
                                                                     assistantContent;
                                                             }
+
                                                             return newHistory;
                                                         });
 
